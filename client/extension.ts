@@ -1,26 +1,60 @@
 import { execSync } from 'child_process';
-
-import * as client from 'vscode-languageclient';
+import * as fs from 'fs';
+import * as im from 'immutable';
+import * as yaml from 'js-yaml';
 import * as os from 'os';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as vs from 'vscode';
-import * as yaml from "js-yaml";
-
-import * as im from 'immutable';
+import * as vscode from 'vscode';
+import * as client from 'vscode-languageclient';
 
 import * as lexical from '../compiler/lexical-analysis/lexical';
+import * as explorer from './explorer';
+import * as ksFs from './fs';
+import { host } from './host';
+import { create as ksCreate } from './ks';
+import { shell } from './shell';
 
+const ks = ksCreate(host, ksFs.fs, shell);
 
 // activate registers the Jsonnet language server with vscode, and
 // configures it based on the contents of the workspace JSON file.
 export const activate = (context: vs.ExtensionContext) => {
+  const treeProvider = explorer.create(ks);
+
+  const subscriptions = [
+    vscode.commands.registerCommand('ksonnet.refreshExplorer', () => treeProvider.refresh()),
+    vscode.commands.registerCommand('ksonnet.useEnvironment', useKsonnetEnvironment),
+  ];
+
+  subscriptions.forEach((element) => {
+    context.subscriptions.push(element)
+  })
+
+  // tree data providers
+  vscode.window.registerTreeDataProvider('ksonnet.explorer', treeProvider);
+
   register.jsonnetClient(context);
   const diagProvider = register.diagnostics(context);
   register.previewCommands(context, diagProvider);
 }
 
 export const deactivate = () => { }
+
+async function useKsonnetEnvironment(explorerNode: explorer.KsonnetObject) {
+  const envName = explorerNode.metadata.name;
+  const shellResult = await ks.invokeAsync(`env current --set ${envName}`)
+  if (shellResult.code === 0) {
+    refreshExplorer();
+  } else {
+    vscode.window.showErrorMessage(`Failed to set ${envName}' as current environment: ${shellResult.stderr}`);
+  }
+}
+
+async function refreshExplorer() {
+  await vscode.commands.executeCommand("ksonnet.refreshExplorer");
+}
+
 
 namespace register {
   // jsonnetClient registers the Jsonnet language client with vscode.
