@@ -1,11 +1,10 @@
 import { execSync } from 'child_process';
-import * as fs from 'fs';
 import * as im from 'immutable';
 import * as yaml from 'js-yaml';
 import * as os from 'os';
 import * as path from 'path';
-import * as vs from 'vscode';
 import * as vscode from 'vscode';
+import * as vs from 'vscode';
 import * as client from 'vscode-languageclient';
 
 import * as lexical from '../compiler/lexical-analysis/lexical';
@@ -13,8 +12,8 @@ import * as explorer from './explorer';
 import * as ksFs from './fs';
 import { host } from './host';
 import { create as ksCreate } from './ks';
-import { shell } from './shell';
 import * as ksUtils from './ksonnet-utils';
+import { shell } from './shell';
 
 const ks = ksCreate(host, ksFs.fs, shell);
 
