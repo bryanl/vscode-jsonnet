@@ -14,6 +14,7 @@ import * as ksFs from './fs';
 import { host } from './host';
 import { create as ksCreate } from './ks';
 import { shell } from './shell';
+import * as ksUtils from './ksonnet-utils';
 
 const ks = ksCreate(host, ksFs.fs, shell);
 
@@ -365,10 +366,10 @@ namespace jsonnet {
 
       let codePaths = '';
 
-      if (ksonnet.isInApp(sourceFile)) {
+      if (ksUtils.isInApp(sourceFile)) {
         const dir = path.dirname(sourceFile);
         const paramsPath = path.join(dir, "params.libsonnet");
-        const rootDir = ksonnet.rootPath(sourceFile);
+        const rootDir = ksUtils.rootPath(sourceFile);
         const envParamsPath = path.join(rootDir, "environments", "default", "params.libsonnet");
 
         let codeImports = {
@@ -592,64 +593,5 @@ namespace display {
     }
 
     return active.viewColumn;
-  }
-}
-
-export namespace ksonnet {
-  // find the root of the components structure.
-  export function isInApp(filePath: string, fsRoot = '/'): boolean {
-    const currentPath = path.join(fsRoot, filePath)
-    return checkForKsonnet(currentPath);
-  }
-
-  export function rootPath(filePath: string, fsRoot = '/'): string {
-    const currentPath = path.join(fsRoot, filePath)
-    return findRootPath(currentPath);
-  }
-
-  function checkForKsonnet(filePath: string): boolean {
-    if (filePath === "/") {
-      return false;
-    }
-
-    const dir = path.dirname(filePath);
-    const parts = dir.split(path.sep)
-    if (parts[parts.length - 1] === "components") {
-      const root = path.dirname(dir);
-      const ksConfig = path.join(root, "app.yaml")
-
-      try {
-        const stats = fs.statSync(ksConfig)
-        return true;
-      }
-      catch (err) {
-        return false;
-      }
-    }
-
-    return checkForKsonnet(dir);
-  }
-
-  function findRootPath(filePath: string): string {
-    if (filePath === "/") {
-      return '';
-    }
-
-    const dir = path.dirname(filePath);
-    const parts = dir.split(path.sep)
-    if (parts[parts.length - 1] === "components") {
-      const root = path.dirname(dir);
-      const ksConfig = path.join(root, "app.yaml")
-
-      try {
-        const stats = fs.statSync(ksConfig)
-        return root;
-      }
-      catch (err) {
-        return '';
-      }
-    }
-
-    return findRootPath(dir);
   }
 }
