@@ -4,6 +4,7 @@ import { Md5 } from 'ts-md5/dist/md5';
 import * as vscode from 'vscode';
 
 import { Ks } from './ks';
+import { ShellResult } from './shell';
 
 export interface Env {
     readonly name: string;
@@ -17,100 +18,124 @@ export interface Env {
     readonly active: boolean;
 }
 
-export async function getEnvironments(ks: Ks): Promise<Env[]> {
-    const shellResult = await ks.invokeAsync("env list -o json");
-    if (shellResult.code !== 0) {
-        vscode.window.showErrorMessage(shellResult.stderr)
-        return [];
+function locateCwd(): string | undefined {
+    const editor = vscode.window.activeTextEditor;
+
+    if (editor) {
+        const resource = editor.document.uri;
+        if (resource.scheme == 'file') {
+            const folder = vscode.workspace.getWorkspaceFolder(resource);
+            if (folder) {
+                return folder.uri.path;
+            }
+        }
     }
 
-    const current = await getCurrentEnvironment(ks)
+    return undefined;
+}
 
-    const ksEnvironments = JSON.parse(shellResult.stdout);
-    var environments: Env[] = [];
+export async function setCurrentEnvironment(ks: Ks, name: string): Promise<boolean>  {
+    const appRoot = findRootPath(locateCwd())
+
+    if (appRoot) {
+        const shellResult = await ks.invokeAsync(`env current --set ${name}`, appRoot);
+        if (shellResult.code === 0) {
+            return true
+        }
+
+        vscode.window.showErrorMessage(`Failed to set ${name}' as current environment: ${shellResult.stderr}`);
+        return false;
+    }
+
+    return false;
+}
 
 
-    Object.keys(ksEnvironments).forEach(key => {
-        let value = ksEnvironments[key];
-        const hash = Md5.hashStr(key).toString();
+export async function getEnvironments(ks: Ks): Promise<Env[]> {
+    const wd = locateCwd()
+    const appRoot = findRootPath(wd)
 
-        environments.push({
-            name: key,
-            hash: hash,
-            kubernetesVersion: value.k8sVersion,
-            path: value.path,
-            server: value.destination.server,
-            namespace: value.destination.namespace,
-            active: current === key,
+    if (appRoot) {
+        const shellResult = await ks.invokeAsync("env list -o json", appRoot);
+        if (shellResult.code !== 0) {
+            vscode.window.showErrorMessage(shellResult.stderr)
+            return [];
+        }
+
+        const current = await getCurrentEnvironment(ks)
+
+        const ksEnvironments = JSON.parse(shellResult.stdout);
+        var environments: Env[] = [];
+
+
+        Object.keys(ksEnvironments).forEach(key => {
+            let value = ksEnvironments[key];
+            const hash = Md5.hashStr(key).toString();
+
+            environments.push({
+                name: key,
+                hash: hash,
+                kubernetesVersion: value.k8sVersion,
+                path: value.path,
+                server: value.destination.server,
+                namespace: value.destination.namespace,
+                active: current === key,
+            });
         });
-    });
 
-    return environments;
+        return environments;
+    }
+
+    return [];
 }
 
 async function getCurrentEnvironment(ks: Ks): Promise<string> {
-    const shellResult = await ks.invokeAsync("env current");
-    if (shellResult.code !== 0) {
-        vscode.window.showErrorMessage(shellResult.stderr)
-        return "";
+    const appRoot = findRootPath(locateCwd())
+
+    if (appRoot) {
+        const shellResult = await ks.invokeAsync("env current", appRoot);
+        if (shellResult.code !== 0) {
+            vscode.window.showErrorMessage(shellResult.stderr)
+            return "";
+        }
+
+        return shellResult.stdout.trim();
+    }
+    return "";
+}
+
+/**
+ * Return the root path of the ksonnet app.
+ *
+ * @param filePath
+ * @param fsRoot
+ */
+export function rootPath(filePath?: string, fsRoot = '/'): string | undefined {
+    if (!filePath) {
+        return undefined
     }
 
-    return shellResult.stdout.trim();
-}
-
-// find the root of the components structure.
-export function isInApp(filePath: string, fsRoot = '/'): boolean {
-    const currentPath = path.join(fsRoot, filePath)
-    return checkForKsonnet(currentPath);
-}
-
-export function rootPath(filePath: string, fsRoot = '/'): string {
     const currentPath = path.join(fsRoot, filePath)
     return findRootPath(currentPath);
 }
 
-function checkForKsonnet(filePath: string): boolean {
-    if (filePath === "/") {
-        return false;
+function findRootPath(dirPath?: string): string | undefined {
+    if (!dirPath) {
+        return undefined
     }
 
-    const dir = path.dirname(filePath);
-    const parts = dir.split(path.sep)
-    if (parts[parts.length - 1] === "components") {
-        const root = path.dirname(dir);
-        const ksConfig = path.join(root, "app.yaml")
-
-        try {
-            const stats = fs.statSync(ksConfig)
-            return true;
-        }
-        catch (err) {
-            return false;
-        }
+    if (dirPath === "/") {
+        return;
     }
 
-    return checkForKsonnet(dir);
-}
+    const ksConfig = path.join(dirPath, "app.yaml")
 
-function findRootPath(filePath: string): string {
-    if (filePath === "/") {
-        return '';
+    try {
+        const stats = fs.statSync(ksConfig)
+        return dirPath;
     }
-
-    const dir = path.dirname(filePath);
-    const parts = dir.split(path.sep)
-    if (parts[parts.length - 1] === "components") {
-        const root = path.dirname(dir);
-        const ksConfig = path.join(root, "app.yaml")
-
-        try {
-            const stats = fs.statSync(ksConfig)
-            return root;
-        }
-        catch (err) {
-            return '';
-        }
+    catch (err) {
+        const dir = path.dirname(dirPath);
+        return findRootPath(dir);
     }
-
-    return findRootPath(dir);
 }

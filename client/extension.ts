@@ -23,6 +23,8 @@ export const activate = (context: vs.ExtensionContext) => {
   const treeProvider = explorer.create(ks);
 
   const subscriptions = [
+    vscode.workspace.onDidChangeWorkspaceFolders(e => console.log(e)),
+    vscode.window.onDidChangeActiveTextEditor(e => updateKsonnetWorkspace()),
     vscode.commands.registerCommand('ksonnet.refreshExplorer', () => treeProvider.refresh()),
     vscode.commands.registerCommand('ksonnet.useEnvironment', useKsonnetEnvironment),
   ];
@@ -41,13 +43,16 @@ export const activate = (context: vs.ExtensionContext) => {
 
 export const deactivate = () => { }
 
+var currentWorkspace = "";
+
+function updateKsonnetWorkspace(): void {
+  refreshExplorer()
+}
+
 async function useKsonnetEnvironment(explorerNode: explorer.KsonnetObject) {
   const envName = explorerNode.metadata.name;
-  const shellResult = await ks.invokeAsync(`env current --set ${envName}`)
-  if (shellResult.code === 0) {
-    refreshExplorer();
-  } else {
-    vscode.window.showErrorMessage(`Failed to set ${envName}' as current environment: ${shellResult.stderr}`);
+  if (ksUtils.setCurrentEnvironment(ks, envName)) {
+    refreshExplorer()
   }
 }
 
@@ -365,11 +370,13 @@ namespace jsonnet {
 
       let codePaths = '';
 
-      if (ksUtils.isInApp(sourceFile)) {
+      const rootDir = ksUtils.rootPath(sourceFile);
+
+      if (rootDir) {
         const dir = path.dirname(sourceFile);
         const paramsPath = path.join(dir, "params.libsonnet");
         const rootDir = ksUtils.rootPath(sourceFile);
-        const envParamsPath = path.join(rootDir, "environments", "default", "params.libsonnet");
+        const envParamsPath = path.join(rootDir!, "environments", "default", "params.libsonnet");
 
         let codeImports = {
           '__ksonnet/params': path.join(dir, "params.libsonnet"),

@@ -2,13 +2,13 @@ import * as binutil from './binutil';
 import { FS } from './fs';
 import { Host } from './host';
 import { Shell, ShellHandler, ShellResult } from './shell';
-import { Terminal } from 'vscode';
+import * as vscode from 'vscode';
 
 export interface Ks {
     checkPresent(errorMessageMode: CheckPresentMessageMode): Promise<boolean>
     invoke(command: string, handler?: ShellHandler): Promise<void>;
     invokeWithProgress(command: string, progressMessage: string, handler?: ShellHandler): Promise<void>;
-    invokeAsync(command: string): Promise<ShellResult>;
+    invokeAsync(command: string, cwd: string): Promise<ShellResult>;
     invokeAsyncWithProgress(command: string, progressMessage: string): Promise<ShellResult>;
 
     invokeInTerminal(command: string, terminalName?: string): void;
@@ -31,7 +31,7 @@ class KsImpl implements Ks {
     }
 
     private readonly context : Context;
-    private sharedTerminal : Terminal | null;
+    private sharedTerminal : vscode.Terminal | null;
 
     checkPresent(errorMessageMode : CheckPresentMessageMode) : Promise<boolean> {
         return checkPresent(this.context, errorMessageMode);
@@ -58,7 +58,7 @@ class KsImpl implements Ks {
     path() : string {
         return path(this.context);
     }
-    private getSharedTerminal() : Terminal {
+    private getSharedTerminal() : vscode.Terminal {
         if (!this.sharedTerminal) {
             this.sharedTerminal = this.context.host.createTerminal('ks');
             const disposable = this.context.host.onDidCloseTerminal((terminal) => {
@@ -106,6 +106,22 @@ function getCheckKsContextMessage(errorMessageMode : CheckPresentMessageMode) : 
     return '';
 }
 
+function locateCwd(): string | undefined {
+    const editor = vscode.window.activeTextEditor;
+
+    if (editor) {
+        const resource = editor.document.uri;
+        if (resource.scheme == 'file') {
+            const folder = vscode.workspace.getWorkspaceFolder(resource);
+            if (folder) {
+                return folder.uri.path;
+            }
+        }
+    }
+
+    return undefined;
+}
+
 async function invoke(context : Context, command : string, handler? : ShellHandler) : Promise<void> {
     await ksInternal(context, command, handler || ksDone(context));
 }
@@ -125,7 +141,7 @@ async function invokeWithProgress(context : Context, command : string, progressM
 async function invokeAsync(context : Context, command : string) : Promise<ShellResult> {
     const bin = baseKsPath(context);
     let cmd = bin + ' ' + command;
-    return await context.shell.exec(cmd);
+    return await context.shell.exec(cmd, locateCwd());
 }
 
 async function invokeAsyncWithProgress(context : Context, command : string, progressMessage : string): Promise<ShellResult> {
@@ -135,7 +151,7 @@ async function invokeAsyncWithProgress(context : Context, command : string, prog
     });
 }
 
-function invokeInTerminal(context : Context, command : string, terminal : Terminal) : void {
+function invokeInTerminal(context : Context, command : string, terminal : vscode.Terminal) : void {
     let bin = baseKsPath(context).trim();
     if (bin.indexOf(" ") > -1 && !/^['"]/.test(bin)) {
         bin = `"${bin}"`;
@@ -148,7 +164,7 @@ async function ksInternal(context : Context, command : string, handler : ShellHa
     if (await checkPresent(context, 'command')) {
         const bin = baseKsPath(context);
         let cmd = bin + ' ' + command;
-        context.shell.exec(cmd).then(({code, stdout, stderr}) => handler(code, stdout, stderr)).catch()
+        context.shell.exec(cmd, locateCwd()).then(({code, stdout, stderr}) => handler(code, stdout, stderr)).catch()
     }
 }
 

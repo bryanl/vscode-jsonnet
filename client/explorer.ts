@@ -18,7 +18,7 @@ export class KsonnetExplorer implements vscode.TreeDataProvider<KsonnetObject> {
     private _onDidChangeTreeData: vscode.EventEmitter<KsonnetObject | undefined> = new vscode.EventEmitter<KsonnetObject | undefined>();
     readonly onDidChangeTreeData: vscode.Event<KsonnetObject | undefined> = this._onDidChangeTreeData.event;
 
-    constructor(private readonly ks: Ks) {}
+    constructor(private readonly ks: Ks) { }
 
     getTreeItem(element: KsonnetObject): vscode.TreeItem | Thenable<vscode.TreeItem> {
         return element.getTreeItem()
@@ -44,9 +44,9 @@ export class KsonnetExplorer implements vscode.TreeDataProvider<KsonnetObject> {
 }
 
 class KsonnetEnvironment implements KsonnetObject {
-    constructor(readonly id: string, readonly metadata: ksUtils.Env) {}
+    constructor(readonly id: string, readonly metadata: ksUtils.Env) { }
 
-    getChildren(ks: Ks) : vscode.ProviderResult<KsonnetObject[]> {
+    getChildren(ks: Ks): vscode.ProviderResult<KsonnetObject[]> {
         return [];
     }
 
@@ -56,7 +56,7 @@ class KsonnetEnvironment implements KsonnetObject {
         treeItem.contextValue = "ksonnet.environment";
 
         if (this.metadata.active) {
-           treeItem.label = "* " + treeItem.label;
+            treeItem.label = "* " + treeItem.label;
         } else {
             treeItem.contextValue += ".inactive";
         }
@@ -66,7 +66,7 @@ class KsonnetEnvironment implements KsonnetObject {
 }
 
 abstract class KsonnetFolder implements KsonnetObject {
-    constructor(readonly id: string, readonly displayName: string, readonly contextValue?: string){
+    constructor(readonly id: string, readonly displayName: string, readonly contextValue?: string) {
     }
 
     abstract getChildren(ks: Ks): vscode.ProviderResult<KsonnetObject[]>;
