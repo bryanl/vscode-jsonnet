@@ -96,6 +96,7 @@ async function exec(cmd: string, cwd?: string): Promise<ShellResult> {
 
 function execCore(cmd: string, opts: any): Promise<ShellResult> {
     return new Promise<ShellResult>((resolve, reject) => {
+        console.log(`running ${cmd}`);
         shelljs.exec(cmd, opts, (code, stdout, stderr) => resolve({ code: code, stdout: stdout, stderr: stderr }));
     });
 }

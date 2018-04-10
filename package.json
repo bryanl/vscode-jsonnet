@@ -37,6 +37,10 @@
         ],
         "configuration": {
             "properties": {
+                "ksonnet.executablePath": {
+                    "description": "Location of the `ks` executable.",
+                    "type": "string"
+                },
                 "jsonnet.executablePath": {
                     "default": null,
                     "description": "Location of the `jsonnet` executable.",

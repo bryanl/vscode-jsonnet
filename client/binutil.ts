@@ -3,19 +3,19 @@ import { Host } from './host';
 import { FS } from './fs';
 
 export interface BinCheckContext {
-    readonly host : Host;
-    readonly fs : FS;
-    readonly shell : Shell;
-    binFound : boolean;
-    binPath : string;
+    readonly host: Host;
+    readonly fs: FS;
+    readonly shell: Shell;
+    binFound: boolean;
+    binPath: string;
 }
 
 interface FindBinaryResult {
-    err : number | null;
-    output : string;
+    err: number | null;
+    output: string;
 }
 
-async function findBinary(shell : Shell, binName : string) : Promise<FindBinaryResult> {
+async function findBinary(shell: Shell, binName: string): Promise<FindBinaryResult> {
     let cmd = `which ${binName}`;
 
     if (shell.isWindows()) {
@@ -38,7 +38,7 @@ async function findBinary(shell : Shell, binName : string) : Promise<FindBinaryR
     return { err: null, output: execResult.stdout };
 }
 
-export function execPath(shell : Shell, basePath : string) : string {
+export function execPath(shell: Shell, basePath: string): string {
     let bin = basePath;
     if (shell.isWindows() && bin && !(bin.endsWith('.exe'))) {
         bin = bin + '.exe';
@@ -48,7 +48,7 @@ export function execPath(shell : Shell, basePath : string) : string {
 
 type CheckPresentFailureReason = 'inferFailed' | 'configuredFileMissing';
 
-function alertNoBin(host : Host, binName : string, failureReason : CheckPresentFailureReason, message : string) : void {
+function alertNoBin(host: Host, binName: string, failureReason: CheckPresentFailureReason, message: string): void {
     switch (failureReason) {
         case 'inferFailed':
             host.showErrorMessage(message, 'Learn more').then(
@@ -67,7 +67,7 @@ function alertNoBin(host : Host, binName : string, failureReason : CheckPresentF
     }
 }
 
-export async function checkForBinary(context : BinCheckContext, bin : string, binName : string, inferFailedMessage : string, configuredFileMissingMessage : string) : Promise<boolean> {
+export async function checkForBinary(context: BinCheckContext, bin: string, binName: string, inferFailedMessage: string, configuredFileMissingMessage: string): Promise<boolean> {
     if (!bin) {
         const fb = await findBinary(context.shell, binName);
 
