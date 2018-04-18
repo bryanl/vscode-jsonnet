@@ -6,13 +6,13 @@ import * as alert from './alert';
 import * as explorer from './explorer';
 import * as fs from './fs';
 import { host } from './host';
+import { create as jsonnetCreate } from './jsonnet';
 import * as jsUtils from './jsonnet-utils';
 import { create as ksCreate } from './ks';
-import { create as jsonnetCreate } from './jsonnet';
 import * as ksUtils from './ksonnet-utils';
+import { create as previewCreate } from './preview';
 import { shell } from './shell';
 import * as workspace from './workspace';
-import { create as previewCreate } from './preview';
 
 const ks = ksCreate(host, fs.fs, shell);
 const jsonnet = jsonnetCreate(host, fs.fs, shell);
@@ -22,7 +22,7 @@ const jsonnet = jsonnetCreate(host, fs.fs, shell);
 export const activate = (context: vs.ExtensionContext) => {
   const treeProvider = explorer.create(ks);
 
-  const jsonnetPreviewProvider = previewCreate(jsonnet, ks);
+  const jsonnetPreviewProvider = previewCreate(jsonnet, ks, fs.fs);
 
   const subscriptions = [
     vscode.commands.registerCommand('ksonnet.refreshExplorer', () => treeProvider.refresh()),

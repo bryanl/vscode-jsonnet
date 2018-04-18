@@ -13,6 +13,8 @@ export function create(jsonnet: Jsonnet, ks: Ks, fs: fs.FS): Provider {
 
 export class Provider implements vscode.TextDocumentContentProvider {
     private _documents = new Map<string, string>();
+    private _onDidChangeDocumentData: vscode.EventEmitter<undefined> = new vscode.EventEmitter<undefined>();
+    private onDidChangeDocumentData: vscode.Event<undefined> = this._onDidChangeDocumentData.event;
 
     constructor(private readonly jsonnet: Jsonnet, private readonly ks: Ks, private readonly fs: fs.FS) {
 
@@ -89,6 +91,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     public delete(document: vscode.TextDocument): void {
         const uri = document.uri.query.toString();
         this._documents.delete(uri)
+    }
+
+    refresh(): void {
+        this._onDidChangeDocumentData.fire();
     }
 
 }
